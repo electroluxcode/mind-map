@@ -287,7 +287,13 @@ class MindMap {
 
   //  触发事件
   emit(event, ...args) {
-    this.event.emit(event, ...args)
+    // console.log('emit--', {evenName:event, args: args, events: this.event})
+    try{
+      this.event.emit(event, ...args)
+    }catch(e){
+      console.log('emit--error', {evenName:event, args: args, events: this.event})
+      console.log(e)
+    }
   }
 
   //  解绑事件

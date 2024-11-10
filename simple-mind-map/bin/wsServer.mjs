@@ -2,15 +2,21 @@
 
 import ws from 'ws'
 import http from 'http'
+
+// 处理映射数据结构 y-ws 这是这样做的
 import * as map from 'lib0/map'
 
 const wsReadyStateConnecting = 0
 const wsReadyStateOpen = 1
-const wsReadyStateClosing = 2 // eslint-disable-line
-const wsReadyStateClosed = 3 // eslint-disable-line
+
+
+// 基本原理是将思维导图的树数据转成平级的对象数据
+// 然后通过Y.Map类型的共享数据进行协同，即当画布上进行了某些操作后会更新y.map对象，
+// 然后其他协同的客户端会接收到更新后的数据，再转换回树结构数据，更新画布即可实现实时更新。
 
 const pingTimeout = 30000
 
+console.log('ws server start')
 const port = process.env.PORT || 4444
 // @ts-ignore
 const wss = new ws.Server({ noServer: true })
@@ -31,6 +37,7 @@ const topics = new Map()
  * @param {object} message
  */
 const send = (conn, message) => {
+  // console.log('send-----------', message)
   if (
     conn.readyState !== wsReadyStateConnecting &&
     conn.readyState !== wsReadyStateOpen
@@ -52,6 +59,7 @@ const onconnection = conn => {
   /**
    * @type {Set<string>}
    */
+  // console.log('new client connected')
   const subscribedTopics = new Set()
   let closed = false
   // Check if connection is still alive
@@ -86,16 +94,23 @@ const onconnection = conn => {
   conn.on(
     'message',
     /** @param {object} message */ message => {
+      // console.log("收到信息----------")
+      // console.log(message)
       if (typeof message === 'string') {
         message = JSON.parse(message)
       }
+      // console.log('收到信息------------')
+      // console.log(message)
       if (message && message.type && !closed) {
         switch (message.type) {
+          // step1: 开始订阅
           case 'subscribe':
             /** @type {Array<string>} */ ;(message.topics || []).forEach(
               topicName => {
                 if (typeof topicName === 'string') {
                   // add conn to topic
+                  // step 1.1 获取现有连接数据,如果没有就新建一个
+                  // 用 topicName 来命名
                   const topic = map.setIfUndefined(
                     topics,
                     topicName,
@@ -109,7 +124,8 @@ const onconnection = conn => {
             )
             break
           case 'unsubscribe':
-            /** @type {Array<string>} */ ;(message.topics || []).forEach(
+            /** @type {Array<string>} */ 
+            (message.topics || []).forEach(
               topicName => {
                 const subs = topics.get(topicName)
                 if (subs) {
